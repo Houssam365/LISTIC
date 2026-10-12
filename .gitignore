@@ -1,0 +1,32 @@
+# Environments & Dependencies
+.venv/
+venv/
+ENV/
+env/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build & Bundles
+frontend/dist/
+frontend/build/
+dist/
+build/
+
+# Environment files
+.env
+*.env
+!.env.example
+
+# IDEs & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

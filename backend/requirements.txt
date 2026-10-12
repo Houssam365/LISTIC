@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+httpx
+pydantic
+pandas
+python-multipart
+motor
+scikit-learn
+beautifulsoup4
+lxml
+numpy
