@@ -1,1 +1,100 @@
+name: CI/CD — Build, Push & Deploy
 
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  GITHUB_USERNAME: houssam365
+  REPO_NAME: listic
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1 : Build & Push des images vers GHCR
+  # ─────────────────────────────────────────────
+  build-and-push:
+    name: 🔨 Build & Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # Nécessaire pour pousser vers GHCR
+
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🔑 Connexion au GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⚙️ Configurer Docker Buildx (multi-platform)
+        uses: docker/setup-buildx-action@v3
+
+      # --- Build & Push : Backend ---
+      - name: 🐍 Build & Push image Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/${{ env.REPO_NAME }}-backend:latest
+            ${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/${{ env.REPO_NAME }}-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- Build & Push : Frontend ---
+      - name: ⚛️ Build & Push image Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/${{ env.REPO_NAME }}-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/${{ env.REPO_NAME }}-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────
+  # JOB 2 : Déploiement SSH sur le serveur distant
+  # ─────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push   # Attend la fin du Job 1
+
+    steps:
+      - name: 📥 Checkout du code (pour récupérer docker-compose.yml)
+        uses: actions/checkout@v4
+
+      - name: 🔐 Connexion SSH et déploiement
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # Aller dans le répertoire du projet sur le serveur
+            cd ~/listic || git clone git@github.com:Houssam365/LISTIC.git ~/listic && cd ~/listic
+
+            # Récupérer les derniers fichiers (notamment docker-compose.yml)
+            git pull origin main
+
+            # Se connecter à GHCR sur le serveur
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.SSH_USER }} --password-stdin
+
+            # Télécharger les nouvelles images depuis GHCR
+            docker compose pull
+
+            # Redémarrer les services mis à jour sans toucher à MongoDB
+            docker compose up -d --remove-orphans
+
+            # Nettoyage des anciennes images inutilisées
+            docker image prune -f

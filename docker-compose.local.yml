@@ -1,0 +1,53 @@
+# ============================================================
+# docker-compose.local.yml — DÉVELOPPEMENT LOCAL
+# Utilisé uniquement sur votre machine de développement.
+# Build les images depuis les sources (code local).
+#
+# Lancement :
+#   docker compose -f docker-compose.local.yml up --build
+# ============================================================
+
+services:
+  mongodb:
+    build: ./listic-database
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data_local:/data/db
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - DATA_PATH_RESEARCHERS=/app/data/listic personnes/listic_personnes.complete_structure.json
+      - DATA_PATH_PROJECTS=/app/data/listic_projet/listic_projets.complete_structure.json
+      - DATA_PATH_DOCTORANTS=/app/data/listic personnes/listic_personnes.doctorants.json
+    volumes:
+      - ./listic-database:/app/data
+    restart: always
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    restart: always
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data_local:
