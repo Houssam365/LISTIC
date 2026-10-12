@@ -1,6 +1,6 @@
 services:
   mongodb:
-    build: ../listic-database
+    build: ./listic-database
     ports:
       - "27018:27017"
     volumes:
@@ -13,7 +13,7 @@ services:
       retries: 5
 
   backend:
-    build: .
+    build: ./backend
     ports:
       - "8000:8000"
     environment:
@@ -23,16 +23,17 @@ services:
       - DATA_PATH_DOCTORANTS=/app/data/listic personnes/listic_personnes.doctorants.json
     volumes:
       # Mount the database directory so the backend can seed the data
-      - ../listic-database:/app/data
+      - ./listic-database:/app/data
     restart: always
     depends_on:
       mongodb:
         condition: service_healthy
 
   frontend:
-    build: ../frontend
+    build: ./frontend
     ports:
       - "5173:80"
+    restart: always
     depends_on:
       - backend
 
