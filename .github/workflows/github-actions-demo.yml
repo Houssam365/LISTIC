@@ -88,7 +88,7 @@ jobs:
             git pull origin main
 
             # Se connecter à GHCR sur le serveur
-            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.SSH_USER }} --password-stdin
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ env.GITHUB_USERNAME }} --password-stdin
 
             # Télécharger les nouvelles images depuis GHCR
             docker compose pull
